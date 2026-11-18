@@ -36,6 +36,8 @@
   #nav button{background:rgba(24,22,19,.82);border:1px solid rgba(190,170,130,.28);
     color:#d8c8a8;padding:7px 15px;border-radius:3px;cursor:pointer;font-size:13px}
   #nav button:hover{border-color:rgba(220,200,160,.7);color:#fff}
+  #nav button#tour{border-color:rgba(201,168,106,.6);color:#e8c98a;letter-spacing:.06em}
+  #nav button#tour.on{background:rgba(150,120,70,.42);border-color:rgba(230,200,150,.9);color:#fff}
   #bar{position:absolute;left:0;right:0;bottom:64px;height:2px;background:rgba(255,255,255,.06)}
   #bar i{display:block;height:100%;background:#c9a86a;width:0;transition:width .25s}
   #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -50,7 +52,7 @@
 <div id="map"><svg id="mapsvg" viewBox="-19 -19 38 38"></svg></div>
 <div id="floors"></div>
 <div id="bar"><i></i></div>
-<div id="nav"><button id="prev">←</button><button id="next">→</button></div>
+<div id="nav"><button id="prev">←</button><button id="tour">▶ 环视一圈</button><button id="next">→</button></div>
 
 <script type="module">
 const FLOOR_NAMES = {1:'一层 · 大殿四柱',2:'二层 · 密洛陀',3:'三层 · 人面龟',4:'四层 · 千棺',
@@ -84,7 +86,7 @@ function buildFloor(k) {
     im.src=`./img/${v.file}`; im.dataset.i=i;
     stage.appendChild(im); imgs.push(im);
     const c=mk('circle',{class:'pt',cx:v.pos[0],cy:v.pos[2],r:0.42});
-    c.addEventListener('click',()=>show(i));
+    c.addEventListener('click',()=>{stopTour();show(i);});
     svg.appendChild(c); pts.push(c);
   });
   document.querySelectorAll('#floors button').forEach((b,i)=>b.classList.toggle('on',i===k));
@@ -112,16 +114,38 @@ function show(i){
 const fb=document.getElementById('floors');
 payload.forEach((p,i)=>{
   const b=document.createElement('button'); b.textContent=FLOOR_NAMES[p.floor];
-  b.onclick=()=>{fi=i;buildFloor(i);};
+  b.onclick=()=>{stopTour();fi=i;buildFloor(i);};
   fb.appendChild(b);
 });
-document.getElementById('prev').onclick=()=>show(vi-1);
-document.getElementById('next').onclick=()=>show(vi+1);
+let tourTimer = null;
+const tourBtn = document.getElementById('tour');
+function stopTour(){
+  if (tourTimer) { clearInterval(tourTimer); tourTimer = null; }
+  tourBtn.classList.remove('on');
+  tourBtn.textContent = '▶ 环视一圈';
+}
+function startTour(){
+  stopTour();
+  const n = imgs.length;
+  if (n < 2) return;
+  let step = 0;
+  tourBtn.classList.add('on');
+  tourBtn.textContent = '■ 停止';
+  tourTimer = setInterval(() => {
+    step++;
+    if (step >= n) { stopTour(); return; }
+    show(vi + 1);
+  }, 1200);
+}
+tourBtn.onclick = () => { tourTimer ? stopTour() : startTour(); };
+
+document.getElementById('prev').onclick=()=>{ stopTour(); show(vi-1); };
+document.getElementById('next').onclick=()=>{ stopTour(); show(vi+1); };
 addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft')show(vi-1);
-  if(e.key==='ArrowRight')show(vi+1);
-  if(e.key==='ArrowUp'){fi=Math.max(0,fi-1);buildFloor(fi);}
-  if(e.key==='ArrowDown'){fi=Math.min(data.length-1,fi+1);buildFloor(fi);}
+  if(e.key==='ArrowLeft'){stopTour();show(vi-1);}
+  if(e.key==='ArrowRight'){stopTour();show(vi+1);}
+  if(e.key==='ArrowUp'){stopTour();fi=Math.max(0,fi-1);buildFloor(fi);}
+  if(e.key==='ArrowDown'){stopTour();fi=Math.min(data.length-1,fi+1);buildFloor(fi);}
 });
 buildFloor(0);
 document.getElementById('loading').style.display='none';
