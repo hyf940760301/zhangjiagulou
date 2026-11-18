@@ -47,14 +47,14 @@
 <div id="stage"></div>
 <div id="vignette"></div>
 <div id="hud"><h1>张家古楼</h1><p>巴乃 · 七层 · 深度引导重建</p><div id="vname">—</div></div>
-<div id="map"><svg id="mapsvg" viewBox="-16 -16 32 32"></svg></div>
+<div id="map"><svg id="mapsvg" viewBox="-19 -19 38 38"></svg></div>
 <div id="floors"></div>
 <div id="bar"><i></i></div>
 <div id="nav"><button id="prev">←</button><button id="next">→</button></div>
 
 <script type="module">
-const FLOOR_NAMES = {1:'一层 · 祭祀大殿',2:'二层 · 强酸机关',3:'三层 · 铁人俑',4:'四层 · 玄龟',
-                     5:'五层 · 族长棺',6:'六层 · 藏宝阁',7:'七层 · 陨玉棺'};
+const FLOOR_NAMES = {1:'一层 · 大殿四柱',2:'二层 · 密洛陀',3:'三层 · 人面龟',4:'四层 · 千棺',
+                     5:'五层 · 夹层',6:'六层 · 藏宝',7:'七层 · 终极'};
 const payload = await (await fetch('./views.json')).json();
 const data = payload.map(p => p.views);
 const floorNo = payload.map(p => p.floor);
@@ -68,10 +68,16 @@ let fi = 0, vi = 0, imgs = [], pts = [], fovG = null;
 function buildFloor(k) {
   stage.innerHTML = ''; svg.innerHTML = ''; imgs = []; pts = [];
   const vs = data[k];
-  svg.appendChild(mk('rect',{x:-12,y:-12,width:24,height:24,fill:'none',
+  const S = (floorNo[k] === 1) ? 15 : 12;      // 一层已重构为 30×30
+  svg.appendChild(mk('rect',{x:-S,y:-S,width:S*2,height:S*2,fill:'none',
     stroke:'rgba(190,170,130,.18)',strokeWidth:0.35}));
-  svg.appendChild(mk('rect',{x:-3,y:-3,width:6,height:6,fill:'none',
-    stroke:'rgba(150,180,220,.22)',strokeWidth:0.25}));
+  if (floorNo[k] === 1) {
+    svg.appendChild(mk('ellipse',{cx:0,cy:0,rx:4.6,ry:4.6,fill:'none',
+      stroke:'rgba(150,180,220,.22)',strokeWidth:0.25}));
+  } else {
+    svg.appendChild(mk('rect',{x:-3,y:-3,width:6,height:6,fill:'none',
+      stroke:'rgba(150,180,220,.22)',strokeWidth:0.25}));
+  }
   fovG = mk('path',{class:'fov'}); svg.appendChild(fovG);
   vs.forEach((v,i)=>{
     const im=document.createElement('img');
@@ -89,7 +95,7 @@ function fovPath(v){
   const [x,,z]=v.pos,[qx,qy,qz,qw]=v.q;
   const fx=-2*(qx*qz+qw*qy);
   const fz=-(1-2*(qx*qx+qy*qy));
-  const ang=Math.atan2(fz,fx),R=3.4,half=0.42;
+  const ang=Math.atan2(fz,fx),R=(floorNo[fi]===1?4.5:3.4),half=0.42;
   const a1=ang-half,a2=ang+half;
   return `M ${x} ${z} L ${x+R*Math.cos(a1)} ${z+R*Math.sin(a1)} L ${x+R*Math.cos(a2)} ${z+R*Math.sin(a2)} Z`;
 }
