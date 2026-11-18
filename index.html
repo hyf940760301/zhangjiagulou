@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>张家古楼 · 七层环视</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#08090b;overflow:hidden;
+    font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;color:#d8cbb4}
+  #stage{position:absolute;inset:0}
+  #stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:0;transition:opacity .4s ease}
+  #stage img.on{opacity:1}
+  #vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 48%,rgba(0,0,0,0) 40%,rgba(0,0,0,.75) 100%)}
+  #hud{position:absolute;left:22px;top:18px;pointer-events:none}
+  #hud h1{font-size:17px;font-weight:600;letter-spacing:.16em;color:#e8dcc4}
+  #hud p{font-size:12px;color:#9c8f78;margin-top:5px}
+  #vname{font-size:12px;color:#c9a86a;margin-top:9px;letter-spacing:.1em}
+  #map{position:absolute;right:22px;top:18px;width:184px;height:184px;
+    background:rgba(10,10,12,.72);border:1px solid rgba(190,170,130,.22);border-radius:3px}
+  #map svg{width:100%;height:100%;display:block}
+  #map .pt{fill:#7a6a4e;cursor:pointer}
+  #map .pt:hover{fill:#c9a86a}
+  #map .pt.on{fill:#f0c070}
+  #map .fov{stroke:rgba(240,192,112,.75);stroke-width:1;fill:rgba(240,192,112,.10)}
+  #floors{position:absolute;left:22px;bottom:78px;display:flex;gap:6px;flex-wrap:wrap;max-width:70%}
+  #floors button{background:rgba(24,22,19,.82);border:1px solid rgba(190,170,130,.28);
+    color:#d8c8a8;padding:5px 11px;border-radius:3px;cursor:pointer;font-size:12px}
+  #floors button:hover{border-color:rgba(220,200,160,.7)}
+  #floors button.on{background:rgba(150,120,70,.42);border-color:rgba(220,200,160,.85);color:#fff}
+  #nav{position:absolute;left:0;right:0;bottom:0;display:flex;gap:10px;
+    align-items:center;justify-content:center;padding:16px;
+    background:linear-gradient(transparent,rgba(0,0,0,.78))}
+  #nav button{background:rgba(24,22,19,.82);border:1px solid rgba(190,170,130,.28);
+    color:#d8c8a8;padding:7px 15px;border-radius:3px;cursor:pointer;font-size:13px}
+  #nav button:hover{border-color:rgba(220,200,160,.7);color:#fff}
+  #bar{position:absolute;left:0;right:0;bottom:64px;height:2px;background:rgba(255,255,255,.06)}
+  #bar i{display:block;height:100%;background:#c9a86a;width:0;transition:width .25s}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:13px;color:#8b7f68;letter-spacing:.1em;background:#08090b;z-index:9}
+</style>
+</head>
+<body>
+<div id="loading">载入中…</div>
+<div id="stage"></div>
+<div id="vignette"></div>
+<div id="hud"><h1>张家古楼</h1><p>巴乃 · 七层 · 深度引导重建</p><div id="vname">—</div></div>
+<div id="map"><svg id="mapsvg" viewBox="-16 -16 32 32"></svg></div>
+<div id="floors"></div>
+<div id="bar"><i></i></div>
+<div id="nav"><button id="prev">←</button><button id="next">→</button></div>
+
+<script type="module">
+const FLOOR_NAMES = {1:'一层 · 祭祀大殿',2:'二层 · 强酸机关',3:'三层 · 铁人俑',4:'四层 · 玄龟',
+                     5:'五层 · 族长棺',6:'六层 · 藏宝阁',7:'七层 · 陨玉棺'};
+const payload = await (await fetch('./views.json')).json();
+const data = payload.map(p => p.views);
+const floorNo = payload.map(p => p.floor);
+const stage = document.getElementById('stage');
+const svg = document.getElementById('mapsvg');
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+let fi = 0, vi = 0, imgs = [], pts = [], fovG = null;
+
+function buildFloor(k) {
+  stage.innerHTML = ''; svg.innerHTML = ''; imgs = []; pts = [];
+  const vs = data[k];
+  svg.appendChild(mk('rect',{x:-12,y:-12,width:24,height:24,fill:'none',
+    stroke:'rgba(190,170,130,.18)',strokeWidth:0.35}));
+  svg.appendChild(mk('rect',{x:-3,y:-3,width:6,height:6,fill:'none',
+    stroke:'rgba(150,180,220,.22)',strokeWidth:0.25}));
+  fovG = mk('path',{class:'fov'}); svg.appendChild(fovG);
+  vs.forEach((v,i)=>{
+    const im=document.createElement('img');
+    im.src=`./img/${v.file}`; im.dataset.i=i;
+    stage.appendChild(im); imgs.push(im);
+    const c=mk('circle',{class:'pt',cx:v.pos[0],cy:v.pos[2],r:0.42});
+    c.addEventListener('click',()=>show(i));
+    svg.appendChild(c); pts.push(c);
+  });
+  document.querySelectorAll('#floors button').forEach((b,i)=>b.classList.toggle('on',i===k));
+  show(0);
+}
+
+function fovPath(v){
+  const [x,,z]=v.pos,[qx,qy,qz,qw]=v.q;
+  const fx=-2*(qx*qz+qw*qy);
+  const fz=-(1-2*(qx*qx+qy*qy));
+  const ang=Math.atan2(fz,fx),R=3.4,half=0.42;
+  const a1=ang-half,a2=ang+half;
+  return `M ${x} ${z} L ${x+R*Math.cos(a1)} ${z+R*Math.sin(a1)} L ${x+R*Math.cos(a2)} ${z+R*Math.sin(a2)} Z`;
+}
+function show(i){
+  const n=imgs.length; vi=(i+n)%n;
+  imgs.forEach((im,j)=>im.classList.toggle('on',j===vi));
+  pts.forEach((p,j)=>p.classList.toggle('on',j===vi));
+  fovG.setAttribute('d',fovPath(data[fi][vi]));
+  document.getElementById('vname').textContent=
+    `${FLOOR_NAMES[floorNo[fi]]} · 机位 ${vi+1}/${n} · ${data[fi][vi].name}`;
+  document.querySelector('#bar i').style.width=((vi+1)/n*100)+'%';
+}
+
+const fb=document.getElementById('floors');
+payload.forEach((p,i)=>{
+  const b=document.createElement('button'); b.textContent=FLOOR_NAMES[p.floor];
+  b.onclick=()=>{fi=i;buildFloor(i);};
+  fb.appendChild(b);
+});
+document.getElementById('prev').onclick=()=>show(vi-1);
+document.getElementById('next').onclick=()=>show(vi+1);
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')show(vi-1);
+  if(e.key==='ArrowRight')show(vi+1);
+  if(e.key==='ArrowUp'){fi=Math.max(0,fi-1);buildFloor(fi);}
+  if(e.key==='ArrowDown'){fi=Math.min(data.length-1,fi+1);buildFloor(fi);}
+});
+buildFloor(0);
+document.getElementById('loading').style.display='none';
+document.title='READY floors='+data.length;
+</script>
+</body>
+</html>
